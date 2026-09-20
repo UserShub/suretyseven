@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: surety-seven
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+    listener:
+      ack-mode: RECORD
+    properties:
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+app:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+  oauth2:
+    # Included as the "iss" claim on every issued token. Not used to validate
+    # tokens in THIS app (see AuthorizationServerConfig's Javadoc -- the
+    # resource server shares the same in-memory JWKSource directly, so
+    # signature validation alone is sufficient here), but set it to the real
+    # public backend URL in production anyway: it's what a spec-compliant
+    # OAuth2/OIDC client would expect, and it's what you'd need if the
+    # authorization server ever split into its own separate service.
+    issuer: ${OAUTH2_ISSUER:http://localhost:8080}
+
+external:
+  applicant-api:
+    base-url: ${APPLICANT_API_BASE_URL:http://localhost:${server.port}}
+    connect-timeout-ms: 2000
+    read-timeout-ms: 4000
+    overall-call-timeout-seconds: 6
+
+# Drains the transactional outbox onto Kafka topics (see KafkaOutboxPublisher).
+outbox:
+  poll-interval-ms: 2000
+  max-attempts: 6
+
+underwriting:
+  thresholds:
+    approve-at: 80
+    refer-at: 50
+
+resilience4j:
+  retry:
+    instances:
+      applicantApi:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.suretyseven.external.ExternalApiException
+  circuitbreaker:
+    instances:
+      applicantApi:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
+  timelimiter:
+    instances:
+      applicantApi:
+        timeout-duration: 5s
+        cancel-running-future: true
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{correlationId}] %logger{36} - %msg%n"
+  level:
+    com.suretyseven: INFO

@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      connection-timeout: 10000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    properties:
+      security.protocol: SSL
+      ssl.truststore.type: PEM
+      ssl.truststore.certificates: ${KAFKA_CA_CERT}
+      ssl.keystore.type: PEM
+      ssl.keystore.certificate.chain: ${KAFKA_ACCESS_CERT}
+      ssl.keystore.key: ${KAFKA_ACCESS_KEY}
+      # Aiven's service certificate's CN doesn't necessarily match the
+      # broker hostname clients connect through; Aiven's own client
+      # examples disable hostname verification for this reason. The CA
+      # cert above still verifies the broker's certificate was actually
+      # issued by Aiven -- this only relaxes the hostname-in-cert check.
+      ssl.endpoint.identification.algorithm: ""
+

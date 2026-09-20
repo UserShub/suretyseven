@@ -1,0 +1,14 @@
+# Activated ALONGSIDE prod (SPRING_PROFILES_ACTIVE=prod,docker in
+# docker-compose.yml), not instead of it: Spring applies a later-listed
+# profile's properties with higher precedence for any key both define, so
+# this file only needs to override the one thing that differs from real
+# production -- Kafka security -- and inherits everything else (Postgres
+# connection settings, Flyway, JPA) from application-prod.yml unchanged.
+# That overlap is deliberate: running docker-compose against the same
+# Postgres/Flyway path as production is what makes "works in docker
+# compose" a meaningful signal about "works in prod" (see docker-compose.yml).
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    properties:
+      security.protocol: PLAINTEXT

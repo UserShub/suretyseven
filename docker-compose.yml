@@ -1,0 +1,92 @@
+# One-command local run: `docker compose up --build`
+#
+#   Frontend: http://localhost:5173
+#   Backend:  http://localhost:8080
+#   Postgres: localhost:5432 (matches production topology; the H2 profile
+#             used by `mvn test` / local `mvn spring-boot:run` is separate)
+#   Kafka:    localhost:9094 (single-node KRaft broker, PLAINTEXT -- local
+#             dev only; production uses Aiven's free Kafka tier over
+#             SASL_SSL/PEM certs, see application-prod.yml and the README's
+#             deployment section)
+#
+# This intentionally mirrors the production shape (Postgres + Kafka, not
+# H2 + no broker) so "works in docker compose" is a meaningful signal about
+# "works in prod". No external accounts needed to run this locally.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: suretyseven
+      POSTGRES_USER: suretyseven
+      POSTGRES_PASSWORD: suretyseven
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U suretyseven"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Single-node Kafka in KRaft mode (no Zookeeper needed) -- Apache's own
+  # official image. Exposes two listeners: one for other containers on the
+  # compose network (kafka:9092) and one mapped to the host (localhost:9094)
+  # so `mvn spring-boot:run` outside Docker can reach it too.
+  kafka:
+    image: apache/kafka:3.8.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_HOST://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    ports:
+      - "9094:9094"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod,docker
+      DB_URL: jdbc:postgresql://db:5432/suretyseven
+      DB_USERNAME: suretyseven
+      DB_PASSWORD: suretyseven
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      OAUTH2_ISSUER: http://localhost:8080
+      ALLOWED_ORIGINS: http://localhost:5173
+      # The mock Applicant API lives inside this same backend process (see
+      # MockApplicantController) -- pointing at itself is correct here and
+      # is exactly what you'd repoint at a real partner system later.
+      APPLICANT_API_BASE_URL: http://localhost:8080
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  db-data:

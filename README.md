@@ -341,3 +341,6 @@ Unchanged from before: base directory `frontend`, build command `npm run
 build`, publish directory `dist`, one env var `VITE_API_BASE_URL` pointing at
 your Render backend. No API-key env var anymore — brokers authenticate at
 runtime via the Connect screen.
+
+Live Link : https://suretyseven-shubhankar.netlify.app
+Backend Link : https://suretyseven-87oi.onrender.com

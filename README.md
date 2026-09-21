@@ -135,7 +135,7 @@ also verify tenant isolation yourself:
 | `demo-broker-2` | `demo-secret-2` |
 
 ```bash
-curl -X POST http://localhost:8080/oauth2/token \
+curl -X POST https://suretyseven-87oi.onrender.com/oauth2/token \
   -u demo-broker-1:demo-secret-1 \
   -d "grant_type=client_credentials&scope=applications.read applications.write"
 ```
@@ -166,7 +166,7 @@ never exposes a secret client-side.
 Requires `applications.write` scope.
 
 ```bash
-curl -X POST http://localhost:8080/applications \
+curl -X POST https://suretyseven-87oi.onrender.com/applications \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: 3f29b1c2-1a34-4e2e-9c1a-1a2b3c4d5e6f" \
@@ -189,7 +189,7 @@ Requires `applications.read` scope. Returns `404` if the ID doesn't exist
 **or** belongs to a different broker than the caller.
 
 ```bash
-curl http://localhost:8080/applications/APP-7F3A2C1B9D -H "Authorization: Bearer $TOKEN"
+curl https://suretyseven-87oi.onrender.com/applications/APP-7F3A2C1B9D -H "Authorization: Bearer $TOKEN"
 ```
 
 Once evaluated:
@@ -220,7 +220,7 @@ Once evaluated:
 Paginated, newest-first, scoped to the caller's own applications only.
 
 ```bash
-curl "http://localhost:8080/applications?page=0&size=10" -H "Authorization: Bearer $TOKEN"
+curl "https://suretyseven-87oi.onrender.com/applications?page=0&size=10" -H "Authorization: Bearer $TOKEN"
 ```
 
 Query params: `page` (0-indexed, default 0), `size` (default 20), `sort`
